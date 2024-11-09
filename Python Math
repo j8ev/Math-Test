@@ -1,0 +1,204 @@
+import pygame
+import random
+import time
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+WIDTH, HEIGHT = 800, 600
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
+FPS = 60
+CUBE_WIDTH, CUBE_HEIGHT = 50, 50
+LASER_WIDTH, LASER_HEIGHT = 50, 10
+
+# Game variables
+score = 0
+laser_speed = 5
+cube_jump = -15
+gravity = 1
+cube_x = WIDTH // 2 - CUBE_WIDTH // 2
+cube_y = HEIGHT - CUBE_HEIGHT
+cube_vel_y = 0
+cube_vel_x = 0
+laser_data = [{"x": random.randint(100, WIDTH - 100), "y": -100} for _ in range(1)]  # Start with 1 laser
+
+# Set up the screen
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Survive the Laser")
+
+# Fonts
+font = pygame.font.SysFont(None, 30)
+
+# Clock to control frame rate
+clock = pygame.time.Clock()
+
+# Cube Movement Constants
+move_speed = 5
+
+def display_score():
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+
+def game_over():
+    game_over_text = font.render(f"Game Over! Final Score: {score}", True, WHITE)
+    screen.blit(game_over_text, (WIDTH // 2 - 150, HEIGHT // 2 - 30))
+
+def ask_math_question():
+    """Ask a random math question when the player dies."""
+    num1 = random.randint(1, 100)
+    num2 = random.randint(1, 100)
+    operation = random.choice(["+", "-"])  # Randomly choose between addition or subtraction
+
+    if operation == "+":
+        correct_answer = num1 + num2
+        question_text = f"What is {num1} + {num2}?"
+    else:
+        correct_answer = num1 - num2
+        question_text = f"What is {num1} - {num2}?"
+    
+    answer_text = font.render(question_text, True, WHITE)
+    screen.blit(answer_text, (WIDTH // 2 - 150, HEIGHT // 2 + 10))
+
+    # Input the answer
+    input_answer = ""
+    pygame.display.update()
+    input_active = True
+    while input_active:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()  # Quit the game if the user closes the window
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:  # Enter key pressed, check answer
+                    if input_answer.isdigit() and int(input_answer) == correct_answer:
+                        return True  # Correct answer
+                    else:
+                        # Incorrect answer, quit the game
+                        pygame.quit()
+                        return False
+                elif event.key == pygame.K_BACKSPACE:  # Handle backspace
+                    input_answer = input_answer[:-1]
+                elif event.key in [pygame.K_0, pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
+                                   pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
+                    input_answer += event.unicode  # Add the pressed key to the answer
+
+                # Display the current answer input
+                answer_input_text = font.render(input_answer, True, WHITE)
+                screen.blit(answer_input_text, (WIDTH // 2 - 50, HEIGHT // 2 + 50))
+                pygame.display.update()
+
+    return False  # If the loop ends, return false
+
+def reset_game():
+    global score, laser_speed, cube_y, cube_vel_y, cube_x, cube_vel_x, laser_data
+    score = 0
+    laser_speed = 5
+    cube_y = HEIGHT - CUBE_HEIGHT
+    cube_vel_y = 0
+    cube_x = WIDTH // 2 - CUBE_WIDTH // 2
+    cube_vel_x = 0
+    laser_data = [{"x": random.randint(100, WIDTH - 100), "y": -100} for _ in range(1)]  # Start with 1 laser
+
+def update_lasers():
+    global laser_data
+    if score >= 10 and len(laser_data) == 1:
+        laser_data.append({"x": random.randint(100, WIDTH - 100), "y": -100})  # Add 2nd laser at score 10
+    if score >= 20 and len(laser_data) == 2:
+        laser_data.append({"x": random.randint(100, WIDTH - 100), "y": -100})  # Add 3rd laser at score 20
+    if score >= 30 and len(laser_data) == 3:
+        laser_data.append({"x": random.randint(100, WIDTH - 100), "y": -100})  # Add 4th laser at score 30
+    if score >= 40 and len(laser_data) == 4:
+        laser_data.append({"x": random.randint(100, WIDTH - 100), "y": -100})  # Add 5th laser at score 40
+    if score >= 50 and len(laser_data) > 4:
+        laser_data = laser_data[:5]  # Max 5 lasers
+
+def main():
+    global score, laser_speed, cube_y, cube_vel_y, cube_x, cube_vel_x, laser_data
+
+    running = True
+    jumping = False
+    while running:
+        screen.fill(BLACK)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and cube_y == HEIGHT - CUBE_HEIGHT:
+                    # Make the cube jump with spacebar
+                    cube_vel_y = cube_jump
+                    jumping = True
+
+        # Handle horizontal movement
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            cube_vel_x = -move_speed
+        elif keys[pygame.K_RIGHT]:
+            cube_vel_x = move_speed
+        else:
+            cube_vel_x = 0
+
+        # Update the cube's position
+        cube_vel_y += gravity
+        cube_y += cube_vel_y
+        cube_x += cube_vel_x
+
+        # Prevent the cube from going out of bounds horizontally
+        if cube_x < 0:
+            cube_x = 0
+        elif cube_x + CUBE_WIDTH > WIDTH:
+            cube_x = WIDTH - CUBE_WIDTH
+
+        # Prevent the cube from falling below the ground
+        if cube_y >= HEIGHT - CUBE_HEIGHT:
+            cube_y = HEIGHT - CUBE_HEIGHT
+            cube_vel_y = 0
+            jumping = False
+
+        # Update laser data
+        update_lasers()
+
+        # Move the lasers
+        for laser in laser_data:
+            laser["y"] += laser_speed
+            if laser["y"] > HEIGHT:
+                laser["y"] = -100
+                laser["x"] = random.randint(100, WIDTH - 100)
+                score += 1
+                laser_speed += 1  # Increase laser speed with score
+
+        # Check for collisions
+        for laser in laser_data:
+            if (cube_x < laser["x"] < cube_x + CUBE_WIDTH or cube_x < laser["x"] + LASER_WIDTH < cube_x + CUBE_WIDTH) and \
+               (cube_y < laser["y"] < cube_y + CUBE_HEIGHT or cube_y < laser["y"] + LASER_HEIGHT < cube_y + CUBE_HEIGHT):
+                game_over()
+                pygame.display.update()
+                if not ask_math_question():  # If the answer is wrong, quit the game
+                    pygame.quit()
+                    return  # Exit the game loop
+                else:
+                    # If the answer is correct, reset the game normally
+                    reset_game()
+
+        # Draw the cube
+        pygame.draw.rect(screen, WHITE, (cube_x, cube_y, CUBE_WIDTH, CUBE_HEIGHT))
+
+        # Draw the lasers
+        for laser in laser_data:
+            pygame.draw.rect(screen, RED, (laser["x"], laser["y"], LASER_WIDTH, LASER_HEIGHT))
+
+        # Display the score
+        display_score()
+
+        # Update the screen
+        pygame.display.update()
+        clock.tick(FPS)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
